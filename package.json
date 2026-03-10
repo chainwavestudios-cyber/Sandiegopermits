@@ -1,8 +1,7 @@
 {
-  "dependencies": {
-    "apify": "^3.0.0",
-    "crawlee": "^3.0.0",
-    "playwright": "^1.40.0"
-  },
-  "type": "module"
+  "actorSpecification": 1,
+  "name": "solar-permit-scraper",
+  "version": "0.0",
+  "buildTag": "latest",
+  "dockerfile": "./Dockerfile"
 }
