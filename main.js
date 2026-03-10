@@ -15,16 +15,17 @@ const crawler = new PlaywrightCrawler({
   requestHandlerTimeoutSecs: 300,
   requestHandler: async ({ page, log }) => {
 
-    log.info('Navigating to San Diego PDS...');
+    log.info('Navigating directly to PDS search page...');
     await page.goto(
-      'https://publicservices.sandiegocounty.gov/CitizenAccess/Default.aspx',
+      'https://publicservices.sandiegocounty.gov/CitizenAccess/Cap/CapHome.aspx?module=PDS&TabName=PDS',
       { waitUntil: 'networkidle' }
     );
 
-    // Click PDS tab
-    await page.click('a:has-text("PDS")');
-    await page.waitForLoadState('networkidle');
-    log.info('On PDS page');
+    await Actor.setValue('pds_page', await page.screenshot({ fullPage: true }), {
+      contentType: 'image/png'
+    });
+
+    log.info('PDS page loaded, filling date range...');
 
     // Fill date range
     await page.fill('input[id*="txtSearchStartDate"]', startDate);
@@ -36,6 +37,10 @@ const crawler = new PlaywrightCrawler({
     await page.click('img[alt="Expand"]');
     log.info('Waiting 10s for additional criteria to load...');
     await page.waitForTimeout(10000);
+
+    await Actor.setValue('criteria_expanded', await page.screenshot({ fullPage: true }), {
+      contentType: 'image/png'
+    });
 
     // Select solar scope code
     await page.selectOption(
@@ -49,6 +54,10 @@ const crawler = new PlaywrightCrawler({
     await page.click('a[id*="btnSearch"]');
     await page.waitForSelector('tr.gdvPermitList_Row', { timeout: 60000 });
     log.info('Search results loaded');
+
+    await Actor.setValue('results_page', await page.screenshot({ fullPage: true }), {
+      contentType: 'image/png'
+    });
 
     // Scrape results table
     const leads = await page.$$eval('tr.gdvPermitList_Row', rows => {
@@ -81,7 +90,6 @@ const crawler = new PlaywrightCrawler({
         const fullUrl = new URL(href, page.url()).href;
         await detailPage.goto(fullUrl, { waitUntil: 'networkidle' });
 
-        // Navigate to application info
         await detailPage.click('a:has-text("More Details")');
         await detailPage.waitForTimeout(2000);
         await detailPage.click('a:has-text("Application Information")');
@@ -108,7 +116,7 @@ const crawler = new PlaywrightCrawler({
 
       } catch (err) {
         log.error(`Failed detail for ${lead.recordId}: ${err.message}`);
-        results.push(lead); // save partial data, don't lose the record
+        results.push(lead);
       } finally {
         await detailPage.close();
       }
@@ -120,7 +128,7 @@ const crawler = new PlaywrightCrawler({
 });
 
 await crawler.run([
-  'https://publicservices.sandiegocounty.gov/CitizenAccess/Default.aspx'
+  'https://publicservices.sandiegocounty.gov/CitizenAccess/Cap/CapHome.aspx?module=PDS&TabName=PDS'
 ]);
 
 await Actor.exit();
