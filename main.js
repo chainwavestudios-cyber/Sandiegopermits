@@ -15,26 +15,25 @@ const crawler = new PlaywrightCrawler({
   requestHandlerTimeoutSecs: 300,
   requestHandler: async ({ page, log }) => {
 
-    log.info('Navigating directly to PDS search page...');
+    log.info('Navigating to PDS Search Records...');
     await page.goto(
       'https://publicservices.sandiegocounty.gov/CitizenAccess/Cap/CapHome.aspx?module=PDS&TabName=PDS',
       { waitUntil: 'networkidle' }
     );
 
-    await Actor.setValue('pds_page', await page.screenshot({ fullPage: true }), {
+    await page.waitForTimeout(2000);
+
+    // Fill date range using exact field IDs
+    await page.fill('#ctl00_PlaceHolderMain_generalSearchForm_txtGSStartDate', startDate);
+    await page.fill('#ctl00_PlaceHolderMain_generalSearchForm_txtGSEndDate', endDate);
+    log.info(`Date range set: ${startDate} to ${endDate}`);
+
+    await Actor.setValue('after_dates', await page.screenshot({ fullPage: true }), {
       contentType: 'image/png'
     });
 
-    log.info('PDS page loaded, filling date range...');
-
-    // Fill date range
-    await page.fill('input[id*="txtSearchStartDate"]', startDate);
-    await page.fill('input[id*="txtSearchEndDate"]', endDate);
-    log.info(`Date range set: ${startDate} to ${endDate}`);
-
-    // Scroll down and expand additional criteria
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.click('img[alt="Expand"]');
+    // Click Search Additional Criteria to expand
+    await page.click('a:has-text("Search Additional Criteria")');
     log.info('Waiting 10s for additional criteria to load...');
     await page.waitForTimeout(10000);
 
@@ -49,7 +48,7 @@ const crawler = new PlaywrightCrawler({
     );
     log.info('Solar scope code selected');
 
-    // Scroll and search
+    // Scroll to bottom and click Search
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.click('a[id*="btnSearch"]');
     await page.waitForSelector('tr.gdvPermitList_Row', { timeout: 60000 });
@@ -82,7 +81,7 @@ const crawler = new PlaywrightCrawler({
       try {
         const href = await page.getAttribute(`a[id="${lead.linkId}"]`, 'href');
         if (!href) {
-          log.warning(`No href found for ${lead.recordId}, skipping detail`);
+          log.warning(`No href for ${lead.recordId}, skipping detail`);
           results.push(lead);
           continue;
         }
@@ -123,7 +122,7 @@ const crawler = new PlaywrightCrawler({
     }
 
     await Actor.pushData(results);
-    log.info(`Done. ${results.length} total records saved to dataset.`);
+    log.info(`Done. ${results.length} total records saved.`);
   }
 });
 
